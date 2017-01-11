@@ -13,21 +13,15 @@ from flask import Flask, g, request, jsonify, render_template, abort, send_from_
 app = Flask(__name__)
 
 # 连接SQLite3
-
-
 def connect_db():
     return sqlite3.connect(DATABASE)
 
-# 请求之前
-
-
+# 请求前建立连接
 @app.before_request
 def before_request():
     g.db = connect_db()
 
 # 处理请求
-
-
 @app.after_request
 def before_request(response):
     request_host = request.host
@@ -75,8 +69,6 @@ def get_domain(token):
     return domain
 
 # 检查是否合法类型
-
-
 def is_valid_type(type):
     return type in ('dns', 'web')
 
@@ -92,8 +84,6 @@ def md5(s):
     return hashlib.md5(s).hexdigest()
 
 # 子域名处理流程
-
-
 def save():
     request_host = request.host
     if request_host != DOMAIN and request_host.endswith('.' + DOMAIN):
@@ -191,8 +181,6 @@ def register():
     return render_template('register.html')
 
 # 根据 域名 类型 获取对应log
-
-
 def get_log(domain, log_type='dns'):
     query = 'SELECT * FROM {} WHERE domain = ? ORDER BY id DESC'.format(
         log_type)
@@ -255,8 +243,6 @@ def del_all(log_type):
     return jsonify(code=200, message=message)
 
 # 检查是否对应token所属域名
-
-
 def is_owner_domain(log_type, token, log_id):
 
     domain = get_domain(token)
@@ -272,8 +258,6 @@ def is_owner_domain(log_type, token, log_id):
     return False
 
 # 删除记录
-
-
 @app.route('/del/<string:log_type>/<int:log_id>', methods=['POST'])
 def del_item(log_type, log_id):
     token = request.form.get('token')
