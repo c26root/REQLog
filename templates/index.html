@@ -1,0 +1,230 @@
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>AllLog</title>
+    <!-- 新 Bootstrap 核心 CSS 文件 -->
+    <link rel="stylesheet" href="http://cdn.bootcss.com/bootstrap/3.3.0/css/bootstrap.min.css">
+    <!-- 可选的Bootstrap主题文件（一般不用引入） -->
+    <link rel="stylesheet" href="http://cdn.bootcss.com/bootstrap/3.3.0/css/bootstrap-theme.min.css">
+    <!-- jQuery文件。务必在bootstrap.min.js 之前引入 -->
+    <script src="http://cdn.bootcss.com/jquery/1.11.1/jquery.min.js"></script>
+    <!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
+    <script src="http://cdn.bootcss.com/bootstrap/3.3.0/js/bootstrap.min.js"></script>
+    <script src="https://unpkg.com/vue/dist/vue.js"></script>
+    <style>
+    body {
+        margin-top: 0px;
+    }
+    
+    [v-cloak] {
+        display: none;
+    }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-md-8 col-md-offset-2">
+                    <div class="page-header">
+                        <h1>DNS / WEB <small>Log</small></h1>
+                    </div>
+                    <div class="panel panel-default">
+                        <!-- Default panel contents -->
+                        <div class="panel-heading text-right">
+                            <div class="btn-group btn-group-justified">
+                                <a class="btn btn-info" @click="refresh"><span class="glyphicon glyphicon-refresh"></span> 刷新 {{ type|uppercase }} 记录</a>
+                                <a class="btn btn-danger" @click="delAll"><span class="glyphicon glyphicon-trash"></span> 删除全部 {{ type|uppercase }} 记录</a>
+                                <a class="btn btn-default" @click="logout"><span class="glyphicon glyphicon-log-out"></span>退出</a></div>
+                        </div>
+                        <div class="panel-body">
+                            <!--     <div class="btn-group btn-group-justified">
+                                <a href="javascript: void(0);" class="btn btn-default" role="button" @click="getDNSLog">DNS</a>
+                                <a href="javascript: void(0);" class="btn btn-default" role="button" @click="getWebLog">WEB</a>
+                            </div> -->
+                            <ul class="nav nav-pills nav-justified" role="tablist">
+                                <li role="presentation" :class="type == 'dns' ? 'active': '' "><a href="javascript: void(0);" @click="type='dns',refresh()">DNS <span class="badge">{{ info.dns_total }}</span></a></li>
+                                <li role="presentation" :class="type == 'web' ? 'active': '' "><a href="javascript: void(0);" @click="type='web',refresh()">WEB <span class="badge">{{ info.web_total }}</span></a></li>
+                            </ul>
+                            <!-- Table -->
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th v-for="item in itemHeaders" v-show="items.length">{{ item }}</th>
+                                    </tr>
+                                </thead>
+                                <!-- dns -->
+                                <tbody>
+                                    <tr v-if="type == 'dns'" v-for="item in items" v-show="items.length">
+                                        <td>{{ item.id }}</td>
+                                        <td>{{ item.qname }}</td>
+                                        <td>{{ item.qtype }}</td>
+                                        <!-- <td>{{ item.remote_addr }}</td> -->
+                                        <td>{{ item.date }}</td>
+                                        <td>
+                                            <button class="btn btn-danger" @click="del(item)">
+                                                <span class="glyphicon glyphicon-trash"></span>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                                <!-- web -->
+                                <tbody>
+                                    <tr v-if="type == 'web'" v-for="item in items" v-show="items.length">
+                                        <td>{{ item.id }}</td>
+                                        <td>{{ item.host }}</td>
+                                        <td>{{ item.path }}</td>
+                                        <td>{{ item.user_agent }}</td>
+                                        <td>{{ item.remote_addr }}</td>
+                                        <td>{{ item.date }}</td>
+                                        <td>
+                                            <button class="btn btn-danger" @click="del(item)">
+                                                <span class="glyphicon glyphicon-trash"></span>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <h1 class="text-center" v-show="!items.length" style="margin: 200px 0px; width: 100%">无记录</h1>
+                            <div class="well well-lg">
+                                <p>dns_api: <a :href="info.dns_api">{{ info.dns_api }}</a></p>
+                                <p>web_api: <a :href="info.web_api">{{ info.web_api }}</a></p>
+                                <p>你的域名: {{ info.domain }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript">
+    // 大写过滤器
+    Vue.filter('uppercase', function(value) {
+        return value.toUpperCase()
+    })
+    var app = new Vue({
+        el: '#app',
+        data: {
+            type: 'dns',
+            info: {},
+            token: '',
+            itemHeaders: [],
+            items: [],
+        },
+        created: function() {
+            this.checkToken()
+            this.getInfo()
+            this.getDNSLog()
+            $("#app").hide()
+        },
+        methods: {
+
+            // 从localStorage取出token
+            getToken: function() {
+                let token = localStorage.getItem('token')
+                return token
+            },
+            // 检查token
+            checkToken: function() {
+                let token = this.getToken()
+                if (!token) {
+                    window.location.href = '/login'
+                }
+                this.token = token
+            },
+            // 获取 api token 信息
+            getInfo: function() {
+                let url = `/user`
+                $.post(url, {
+                    token: this.token
+                }).then(response => {
+                    if (response.code == 404) {
+                        window.location.href = '/login'
+                    }
+                    result = response.result
+                    this.info = result
+
+                }, err => {
+                    if (err.status == 404) {
+
+                    }
+                    console.log(err)
+                })
+            },
+            // 刷新
+            refresh: function() {
+                this.getInfo()
+                if (this.type == 'dns') {
+                    this.getDNSLog()
+                } else if (this.type == 'web') {
+                    this.getWebLog()
+                }
+            },
+            // 获取DNS记录
+            getDNSLog: function() {
+                let url = `/dns`
+                $.post(url, {
+                        token: this.token
+                    }).then(response => {
+                        result = response.result
+                        this.items = result
+                        this.itemHeaders = ['#', 'qname', 'qtype', 'date', 'delete']
+                    })
+            },
+            // 获取WEB记录
+            getWebLog: function() {
+                let url = `/web`
+                $.post(url, {
+                        token: this.token
+                    }).then(response => {
+                        result = response.result
+                        this.items = result
+                        this.itemHeaders = ['#', 'host', 'path', 'user-agent', 'remote_addr', 'date', 'delete']
+                    })
+            },
+            // 删除记录
+            del: function(item) {
+                let url = `/del/${this.type}/${item.id}`
+                $.post(url, {
+                    token: this.token
+                }).then(response => {
+                    if (!response.code == 200) {
+                        console.log('del item failed')
+                        return
+                    }
+                    let index = this.items.indexOf(item)
+                    this.items.splice(index, 1)
+                    this.refresh()
+
+                })
+
+            },
+            // 删除所有记录
+            delAll: function() {
+                let url = `/del/${this.type}/all`
+                $.post(url, {
+                    token: this.token
+                }).then(response => {
+                    if (!response == 200) {
+                        console.log('del item failed')
+                        return
+                    }
+                    this.items = []
+                    this.getInfo()
+                })
+            },
+            // 退出登录
+            logout: function() {
+                localStorage.clear()
+                window.location.href = '/login'
+            }
+        }
+    });
+
+    $("#app").fadeIn()
+    </script>
+</body>
+
+</html>
