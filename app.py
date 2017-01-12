@@ -266,8 +266,6 @@ def is_owner_domain(log_type, token, log_id):
     return False
 
 # 删除记录
-
-
 @app.route('/del/<string:log_type>/<int:log_id>', methods=['POST'])
 def del_item(log_type, log_id):
     token = request.form.get('token')
