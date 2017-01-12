@@ -24,7 +24,6 @@ def before_request():
     g.db = connect_db()
 
 # 处理请求
-@app.after_request
 def before_request(response):
     request_host = request.host
     # 检查是否子域名
