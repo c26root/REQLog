@@ -19,11 +19,9 @@ def connect_db():
     return sqlite3.connect(DATABASE)
 
 
-
 @app.before_request
 def before_request():
     g.db = connect_db()
-
 
 
 @app.after_request
@@ -45,7 +43,6 @@ def after_request(response):
         return jsonify(message=message)
 
     return response
-
 
 @app.teardown_request
 def teardown_request(exception):
