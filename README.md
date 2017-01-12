@@ -1,4 +1,4 @@
-# reqlog
+# REQLog
 ```
 REQLog是一款DNS和HTTP请求日志记录的工具
 WEB: Flask

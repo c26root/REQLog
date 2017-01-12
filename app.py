@@ -18,14 +18,12 @@ app = Flask(__name__)
 def connect_db():
     return sqlite3.connect(DATABASE)
 
-# 请求前建立连接
 
 
 @app.before_request
 def before_request():
     g.db = connect_db()
 
-# 处理请求
 
 
 @app.after_request
@@ -49,7 +47,6 @@ def before_request(response):
     return response
 
 
-# 请求结束
 @app.teardown_request
 def teardown_request(exception):
     if hasattr(g, 'db'):
