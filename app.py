@@ -27,7 +27,7 @@ def before_request():
 
 
 @app.after_request
-def before_request(response):
+def after_request(response):
     request_host = request.host
     # 检查是否子域名
     if request_host != ADMIN_DOMAIN and request_host.endswith('.' + DOMAIN):
