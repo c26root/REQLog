@@ -7,6 +7,7 @@ import string
 import random
 import hashlib
 import sqlite3
+from functools import wraps
 from config import DOMAIN, ADMIN_DOMAIN, DOMAIN_COUNT, DATABASE
 from flask import Flask, g, request, jsonify, render_template, abort, send_from_directory
 
@@ -43,6 +44,7 @@ def after_request(response):
         return jsonify(message=message)
 
     return response
+
 
 @app.teardown_request
 def teardown_request(exception):
@@ -107,6 +109,17 @@ def save():
         result = query_db(query, args=(
             request_host, domain, path, url, remote_addr, user_agent, date))
         g.db.commit()
+
+
+# token 认证
+def token_auth(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        token = request.args.get('token') or request.form.get('token')
+        if token is None or not get_domain(token):
+            return jsonify(code=403, message='invalid token'), 403
+        return func(*args, **kwargs)
+    return wrapper
 
 
 @app.route('/')
@@ -184,8 +197,6 @@ def register():
     return render_template('register.html')
 
 # 根据 域名 类型 获取对应log
-
-
 def get_log(domain, log_type='dns'):
     query = 'SELECT * FROM {} WHERE domain = ? ORDER BY id DESC'.format(
         log_type)
@@ -193,36 +204,27 @@ def get_log(domain, log_type='dns'):
     return result
 
 
-@app.route('/web', methods=['GET', 'POST'])
-def web():
-    token = request.form.get('token') or request.args.get('token')
-
-    domain = get_domain(token)
-    if not get_domain(token):
-        code = 400
-        message = 'invalid token'
-        return jsonify(code=code, message=message), code
-
-    result = get_log(domain, 'web')
-    return jsonify(result=result)
-
-
 @app.route('/dns', methods=['GET', 'POST'])
-def dns():
-    token = request.form.get('token') or request.args.get('token')
-
-    domain = get_domain(token)
-    if not get_domain(token):
+@app.route('/web', methods=['GET', 'POST'])
+@token_auth
+def log():
+    # 校验是否合法类型
+    log_type = request.path[1:]
+    if not is_valid_type(log_type):
         code = 400
-        message = 'invalid token'
+        message = 'invalid type'
         return jsonify(code=code, message=message), code
 
-    result = get_log(domain, 'dns')
-    return jsonify(result=result)
-
+    token = request.form.get('token') or request.args.get('token')
+    domain = get_domain(token)
+    result = get_log(domain, log_type)
+    return jsonify(code=200, result=result), 200
 
 # 删除所有记录
+
+
 @app.route('/del/<string:log_type>/all', methods=['POST'])
+@token_auth
 def del_all(log_type):
     token = request.form.get('token')
 
@@ -233,11 +235,6 @@ def del_all(log_type):
         return jsonify(code=code, message=message), code
 
     domain = get_domain(token)
-    # 校验token
-    if not domain:
-        code = 400
-        message = 'invalid token'
-        return jsonify(code=code, message=message), code
 
     # 删除
     query = 'DELETE FROM {} WHERE domain = ?'.format(log_type)
@@ -268,6 +265,7 @@ def is_owner_domain(log_type, token, log_id):
 
 
 @app.route('/del/<string:log_type>/<int:log_id>', methods=['POST'])
+@token_auth
 def del_item(log_type, log_id):
     token = request.form.get('token')
 
@@ -275,10 +273,6 @@ def del_item(log_type, log_id):
     if not is_valid_type(log_type):
         code = 400
         message = 'invalid type'
-        return jsonify(code=code, message=message), code
-    elif not get_domain(token):
-        code = 400
-        message = 'invalid token'
         return jsonify(code=code, message=message), code
 
     sign = is_owner_domain(log_type, token, log_id)
@@ -296,6 +290,7 @@ def del_item(log_type, log_id):
 
 
 @app.route('/user', methods=['POST'])
+@token_auth
 def user():
     token = request.form.get('token')
     query = 'SELECT token, domain FROM user WHERE token = ?'
