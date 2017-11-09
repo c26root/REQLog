@@ -19,11 +19,11 @@ class DomainResolver():
 
         if unsafedomain(qname):
             print 'unsafedomain', qname
-            reply.add_answer(*RR.fromZone("{}. 60 A 8.8.8.8".format(qname)))
+            reply.add_answer(*RR.fromZone("{0}. 60 A 8.8.8.8".format(qname)))
             return reply
 
         if not is_subdomain(qname):
-            reply.add_answer(*RR.fromZone("{}. 60 A 8.8.8.8".format(qname)))
+            reply.add_answer(*RR.fromZone("{0}. 60 A 8.8.8.8".format(qname)))
             return reply
 
         domain = get_domain(qname)
@@ -32,41 +32,37 @@ class DomainResolver():
             domain_hash = domain.replace('.' + DOMAIN, '')
 
         if not is_valid_domain(domain_hash):
-            reply.add_answer(*RR.fromZone("{}. 60 A 8.8.8.8".format(qname)))
+            reply.add_answer(*RR.fromZone("{0}. 60 A 8.8.8.8".format(qname)))
             return reply
 
         # 合法存在的域名
         reply.add_answer(
-            *RR.fromZone("{}. 60 A {}".format(qname, SERVER_IP)))
+            *RR.fromZone("{0}. 60 A {1}".format(qname, SERVER_IP)))
+
         date = time.strftime("%Y-%M-%d %X")
+        client_ip, client_port = handler.client_address
 
         # 入库
-        query = "INSERT INTO dns (qname, domain, qtype, date) VALUES (?, ?, ?, ?);"
+        query = "INSERT INTO dns (qname, domain, qtype, client_ip, date) VALUES (?, ?, ?, ?, ?);"
         result = query_db(query, args=(
-            qname, domain, QTYPE[qtype], date))
+            qname, domain, QTYPE[qtype], client_ip, date))
         db.commit()
 
         print qname, domain, QTYPE[qtype], date
 
         return reply
 
-# 简单检查合法域名?
-
-
+# 简单检查合法域名
 def unsafedomain(s):
     return '<' in s or '>' in s
 
 # 是否子域名
-
-
 def is_subdomain(qname):
     if qname.rstrip('.').endswith(DOMAIN):
         return True
     return False
 
 # 获取子域名
-
-
 def get_domain(qname):
     qname = qname.rstrip('.')
     if qname.count('.') >= DOMAIN_COUNT:
@@ -75,8 +71,6 @@ def get_domain(qname):
     return False
 
 # 检查是否存在的子域名
-
-
 def is_valid_domain(domain):
     global db
     query = 'SELECT * FROM user where domain = ?'
@@ -86,8 +80,6 @@ def is_valid_domain(domain):
     return True
 
 # 建立连接
-
-
 def connect_db():
     return sqlite3.connect(DATABASE, check_same_thread=False)
 

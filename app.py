@@ -13,9 +13,8 @@ from flask import Flask, g, request, jsonify, render_template, abort, send_from_
 
 app = Flask(__name__)
 
+
 # 连接SQLite3
-
-
 def connect_db():
     return sqlite3.connect(DATABASE)
 
@@ -31,7 +30,7 @@ def after_request(response):
     # 检查是否子域名
     if request_host != ADMIN_DOMAIN and request_host.endswith('.' + DOMAIN):
         if request_host.count('.') >= DOMAIN_COUNT:
-            domain = '.'.join(request_host.split('.')[-(DOMAIN_COUNT+2):])
+            domain = '.'.join(request_host.split('.')[-(DOMAIN_COUNT + 2):])
             query = 'SELECT * FROM user where domain = ?'
             result = query_db(query, args=(domain.replace('.' + DOMAIN, ''), ))
             if not len(result):
@@ -55,12 +54,13 @@ def teardown_request(exception):
 # 辅助查询 字段
 def query_db(query, args=(), one=False):
     cur = g.db.execute(query, args)
-    rv = [dict((cur.description[idx][0], value)
-               for idx, value in enumerate(row)) for row in cur.fetchall()]
+    rv = [
+        dict((cur.description[idx][0], value) for idx, value in enumerate(row))
+        for row in cur.fetchall()
+    ]
     return (rv[0] if rv else None) if one else rv
 
 
-# 判断 token 是否正确
 # 通过token获取所属子域名
 def get_domain(token):
     query = 'SELECT domain FROM user WHERE token = ?'
@@ -70,9 +70,8 @@ def get_domain(token):
     domain = '{}.{}'.format(result.get('domain'), DOMAIN)
     return domain
 
+
 # 检查是否合法类型
-
-
 def is_valid_type(type):
     return type in ('dns', 'web')
 
@@ -81,20 +80,18 @@ def is_valid_type(type):
 def id_generator(size=8, chars=string.ascii_letters + string.digits):
     return ''.join(random.choice(chars) for _ in xrange(size))
 
+
 # md5 hash
-
-
 def md5(s):
     return hashlib.md5(s).hexdigest()
 
+
 # 子域名处理
-
-
 def save():
     request_host = request.host
     if request_host != DOMAIN and request_host.endswith('.' + DOMAIN):
 
-        domain = '.'.join(request_host.split('.')[-(DOMAIN_COUNT+2):])
+        domain = '.'.join(request_host.split('.')[-(DOMAIN_COUNT + 2):])
         path = request.path
         url = request.url
 
@@ -106,8 +103,10 @@ def save():
         date = time.strftime("%Y-%M-%d %X")
 
         query = "INSERT INTO web (host, domain, path, url, remote_addr, user_agent, date) VALUES (?, ?, ?, ?, ?, ?, ?);"
-        result = query_db(query, args=(
-            request_host, domain, path, url, remote_addr, user_agent, date))
+        result = query_db(
+            query,
+            args=(request_host, domain, path, url, remote_addr, user_agent,
+                  date))
         g.db.commit()
 
 
@@ -119,6 +118,7 @@ def token_auth(func):
         if token is None or not get_domain(token):
             return jsonify(code=403, message='invalid token'), 403
         return func(*args, **kwargs)
+
     return wrapper
 
 
@@ -192,9 +192,16 @@ def register():
         result = query_db(query, args=(username, md5(password), token, domain))
         g.db.commit()
 
-        return jsonify(code=200, message='register success', result={'token': token, 'domain': domain})
+        return jsonify(
+            code=200,
+            message='register success',
+            result={
+                'token': token,
+                'domain': domain
+            })
 
     return render_template('register.html')
+
 
 # 根据 域名 类型 获取对应log
 def get_log(domain, log_type='dns'):
@@ -220,6 +227,7 @@ def log():
     result = get_log(domain, log_type)
     return jsonify(code=200, result=result), 200
 
+
 # 删除所有记录
 
 
@@ -238,11 +246,12 @@ def del_all(log_type):
 
     # 删除
     query = 'DELETE FROM {} WHERE domain = ?'.format(log_type)
-    result = query_db(query, args=(domain,))
+    result = query_db(query, args=(domain, ))
     g.db.commit()
     # 删除
     message = 'delete all {} success'.format(log_type)
     return jsonify(code=200, message=message)
+
 
 # 检查是否对应token所属域名
 
@@ -261,9 +270,8 @@ def is_owner_domain(log_type, token, log_id):
         return True
     return False
 
+
 # 删除记录
-
-
 @app.route('/del/<string:log_type>/<int:log_id>', methods=['POST'])
 @token_auth
 def del_item(log_type, log_id):
@@ -294,7 +302,7 @@ def del_item(log_type, log_id):
 def user():
     token = request.form.get('token')
     query = 'SELECT token, domain FROM user WHERE token = ?'
-    result = query_db(query, args=(token,), one=True)
+    result = query_db(query, args=(token, ), one=True)
     if not result:
         code = 404
         message = 'user not found'
@@ -329,6 +337,7 @@ def user():
 @app.errorhandler(404)
 def page_not_found(error):
     return jsonify(code=404, message='Not Found'), 404
+
 
 if __name__ == '__main__':
     app.debug = True
